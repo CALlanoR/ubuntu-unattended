@@ -62,50 +62,21 @@ if [ ${UID} -ne 0 ]; then
     exit 1
 fi
 
-# ask whether to include vmware tools or not
-while true; do
-    echo " which ubuntu edition would you like to remaster:"
-    echo
-    echo "  [1] Ubuntu 14.04.2 LTS Server i386  - Trusty Tahr"
-    echo "  [2] Ubuntu 14.04.2 LTS Server amd64 - Trusty Tahr"
-    echo "  [3] Ubuntu 14.10 Server i386  - Utopic Unicorn"
-    echo "  [4] Ubuntu 14.10 Server amd64 - Utopic Unicorn"
-    echo "  [5] Ubuntu 15.04 Server i386 - Vivid Vervet"
-    echo "  [6] Ubuntu 15.04 Server amd64 - Vivid Vervet"
-    echo
-    read -p " please enter your preference: [1|2|3|4|5|6]: " ubver
-    case $ubver in
-        [1]* )  download_file="ubuntu-14.04.2-server-i386.iso"            # filename of the iso to be downloaded
-                download_location="http://releases.ubuntu.com/14.04.2/"   # location of the file to be downloaded
-                new_iso_name="ubuntu-14.04.2-server-i386-unattended.iso"  # filename of the new iso file to be created
-                break;;
-        [2]* )  download_file="ubuntu-14.04.2-server-amd64.iso"           # filename of the iso to be downloaded
-                download_location="http://releases.ubuntu.com/14.04.2/"   # location of the file to be downloaded
-                new_iso_name="ubuntu-14.04.2-server-amd64-unattended.iso" # filename of the new iso file to be created
-                break;;
-        [3]* )  download_file="ubuntu-14.10-server-i386.iso"              # filename of the iso to be downloaded
-                download_location="http://releases.ubuntu.com/14.10/"     # location of the file to be downloaded
-                new_iso_name="ubuntu-14.10-server-i386-unattended.iso"    # filename of the new iso file to be created
-                break;;
-        [4]* )  download_file="ubuntu-14.10-server-amd64.iso"             # filename of the iso to be downloaded
-                download_location="http://releases.ubuntu.com/14.10/"     # location of the file to be downloaded
-                new_iso_name="ubuntu-14.10-server-amd64-unattended.iso"   # filename of the new iso file to be created
-                break;;
-	[5]* )  download_file="ubuntu-15.04-server-i386.iso"              # filename of the iso to be downloaded
-                download_location="http://releases.ubuntu.com/15.04/"     # location of the file to be downloaded
-                new_iso_name="ubuntu-15.04-server-i386-unattended.iso"    # filename of the new iso file to be created
-                break;;
-	[6]* )  download_file="ubuntu-15.04-server-amd64.iso"             # filename of the iso to be downloaded
-                download_location="http://releases.ubuntu.com/15.04/"     # location of the file to be downloaded
-                new_iso_name="ubuntu-15.04-server-amd64-unattended.iso"   # filename of the new iso file to be created
-                break;;
-        * ) echo " please answer [1], [2], [3], [4], [5] or [6]";;
-    esac
-done
+
+echo " Ubuntu release selection (please view: http://releases.ubuntu.com): "
+echo
+read -p " please enter your release version: " release_version
+read -p " please enter your release variant(server/desktop): " release_variant
+read -p " please enter your release architecture (i386/amd64): " release_architecture
+
+release_base_url="http://releases.ubuntu.com"
+release_base_name="ubuntu-$release_version-$release_variant-$release_architecture"
+release_image_file="$release_base_name.iso"
+download_location="$release_base_url/$release_version/$release_image_file"
 
 # ask the user questions about his/her preferences
-read -ep " please enter your preferred timezone: " -i "Europe/Amsterdam" timezone
-read -ep " please enter your preferred username: " -i "haraldvdlaan" username
+read -ep " please enter your preferred timezone: " -i "America/Bogota" timezone
+read -ep " please enter your preferred username: " -i "janu" username
 read -sp " please enter your preferred password: " password
 printf "\n"
 read -sp " confirm your preferred password: " password2
@@ -126,10 +97,10 @@ if [[ ! -f $tmp/$download_file ]]; then
 fi
 
 # download netson seed file
-seed_file="haraldvdlaan.seed"
+read -ep " please enter your netson preseed file : " -i "only_ssh_server.seed" seed_file
 if [[ ! -f $tmp/$seed_file ]]; then
     echo -n " downloading $seed_file: "
-    download "https://github.com/hvanderlaan/ubuntu-unattended/raw/master/$seed_file"
+    download "https://github.com/CALlanoR/ubuntu-unattended/raw/master/$seed_file"
 fi
 
 # install required packages
@@ -163,16 +134,16 @@ cd $tmp/iso_new
 echo en > $tmp/iso_new/isolinux/lang
 
 # set late command
-late_command="chroot /target wget -O /home/$username/init.sh https://github.com/hvanderlaan/ubuntu-unattended/raw/master/init.sh ;\
-    chroot /target chmod +x /home/$username/init.sh ;"
+# late_command="chroot /target wget -O /home/$username/init.sh https://github.com/hvanderlaan/ubuntu-unattended/raw/master/init.sh ;\
+#     chroot /target chmod +x /home/$username/init.sh ;"
 
 # copy the netson seed file to the iso
 cp -rT $tmp/$seed_file $tmp/iso_new/preseed/$seed_file
 
-# include firstrun script
-echo "
-# setup firstrun script
-d-i preseed/late_command                                    string      $late_command" >> $tmp/iso_new/preseed/$seed_file
+# # include firstrun script
+# echo "
+# # setup firstrun script
+# d-i preseed/late_command                                    string      $late_command" >> $tmp/iso_new/preseed/$seed_file
 
 # generate the password hash
 pwhash=$(echo $password | mkpasswd -s -m sha-512)
