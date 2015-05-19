@@ -65,14 +65,15 @@ fi
 
 echo " Ubuntu release selection (please view: http://releases.ubuntu.com): "
 echo
-read -p " please enter your release version: " release_version
-read -p " please enter your release variant(server/desktop): " release_variant
-read -p " please enter your release architecture (i386/amd64): " release_architecture
+read -ep " please enter your release version: " -i "14.04.2" release_version
+read -ep " please enter your release variant(server/desktop): " -i "server" release_variant
+read -ep " please enter your release architecture (i386/amd64): " -i "amd64" release_architecture
 
 release_base_url="http://releases.ubuntu.com"
 release_base_name="ubuntu-$release_version-$release_variant-$release_architecture"
 release_image_file="$release_base_name.iso"
 download_location="$release_base_url/$release_version/$release_image_file"
+new_iso_name="$release_base_name-unattended.iso"
 
 # ask the user questions about his/her preferences
 read -ep " please enter your preferred timezone: " -i "America/Bogota" timezone
@@ -91,9 +92,9 @@ fi
 
 # download the ubunto iso
 cd $tmp
-if [[ ! -f $tmp/$download_file ]]; then
-    echo -n " downloading $download_file: "
-    download "$download_location$download_file"
+if [[ ! -f $tmp/$release_image_file ]]; then
+    echo -n " downloading $release_image_file: "
+    download "$download_location"
 fi
 
 # download netson seed file
@@ -114,15 +115,14 @@ fi
 
 # create working folders
 echo " remastering your iso file"
-mkdir -p $tmp
-mkdir -p $tmp/iso_org
-mkdir -p $tmp/iso_new
+mkdir iso_org
+mkdir iso_new
 
 # mount the image
 if grep -qs $tmp/iso_org /proc/mounts ; then
     echo " image is already mounted, continue"
 else
-    (mount -o loop $tmp/$download_file $tmp/iso_org > /dev/null 2>&1)
+    (mount -o loop $tmp/$release_image_file $tmp/iso_org > /dev/null 2>&1)
 fi
 
 # copy the iso contents to the working directory
@@ -159,11 +159,15 @@ sed -i "s@{{timezone}}@$timezone@g" $tmp/iso_new/preseed/$seed_file
 # calculate checksum for seed file
 seed_checksum=$(md5sum $tmp/iso_new/preseed/$seed_file)
 
+# add autostart in isolinux/isolinux.cfg
+sed -i "s/timeout 0/timeout 10/" $tmp/iso_new/isolinux/isolinux.cfg
+
 # add the autoinstall option to the menu
+sed -i "s/default install/default autoinstall\ntimeout 10/" $tmp/iso_new/isolinux/txt.cfg
 sed -i "/label install/ilabel autoinstall\n\
-  menu label ^Unattended Ubuntu Server Install\n\
-  kernel /install/vmlinuz\n\
-  append file=/cdrom/preseed/ubuntu-server.seed initrd=/install/initrd.gz auto=true priority=high preseed/file=/cdrom/preseed/haraldvdlaan.seed preseed/file/checksum=$seed_checksum --" $tmp/iso_new/isolinux/txt.cfg
+    menu label ^Unattended Ubuntu Server Install\n\
+    kernel /install/vmlinuz\n\
+    append file=/cdrom/preseed/ubuntu-server.seed initrd=/install/initrd.gz auto=true priority=high preseed/file=/cdrom/preseed/$seed_file preseed/file/checksum=$seed_checksum --" $tmp/iso_new/isolinux/txt.cfg
 
 echo " creating the remastered iso"
 cd $tmp/iso_new
